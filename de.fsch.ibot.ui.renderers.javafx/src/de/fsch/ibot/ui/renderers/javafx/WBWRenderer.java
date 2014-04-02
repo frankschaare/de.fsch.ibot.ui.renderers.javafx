@@ -1,8 +1,16 @@
 package de.fsch.ibot.ui.renderers.javafx;
 
+import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.ui.model.application.MApplication;
 import org.eclipse.e4.ui.model.application.ui.MUIElement;
 import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
+import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EObject;
+
+import com.sun.javafx.geom.Rectangle;
+
+import javafx.geometry.Rectangle2D;
+import javafx.stage.Screen;
 import javafx.stage.Stage; 
 
 public class WBWRenderer extends JavaFXPartRenderer
@@ -12,7 +20,7 @@ private static String ShellMaximizedTag = "shellMaximized"; //$NON-NLS-1$
 
 	public WBWRenderer()
 	{
-		// TODO Auto-generated constructor stub
+	super();
 	}
 	
 	/*
@@ -22,7 +30,7 @@ private static String ShellMaximizedTag = "shellMaximized"; //$NON-NLS-1$
 	 */
 	public Object createWidget(MUIElement element, Object parent) 
 	{
-	Stage primaryStage;
+	final Stage wbwStage;
 
 		// TODO: Die Prüfung: && !(parent instanceof Control) habe ich rausgenommen
 		if (!(element instanceof MWindow) || (parent != null))
@@ -36,70 +44,95 @@ private static String ShellMaximizedTag = "shellMaximized"; //$NON-NLS-1$
 	
 	/*
 	 * Verstehe ich noch nicht
+	 * RTL = Rigth to Left style
 	Boolean rtlMode = (Boolean) appModel.getTransientData().get(E4Workbench.RTL_MODE);
 	int rtlStyle = (rtlMode != null && rtlMode.booleanValue()) ? SWT.RIGHT_TO_LEFT : 0;
 	 * 
 	 */
 
-	/*
-		Shell parentShell = parent == null ? null : ((Control) parent)
-				.getShell();
+	//	TODO: ((Control) parent).getShell() für JavaFX umsetzen
+	//	Shell parentShell = parent == null ? null : ((Control) parent).getShell();
+	Stage parentStage = parent == null ? null : null;
 
-		final Shell wbwShell;
-		if (parentShell == null) {
-			wbwShell = new Shell(Display.getCurrent(), SWT.SHELL_TRIM
-					| rtlStyle);
-			wbwModel.getTags().add("topLevel"); //$NON-NLS-1$
-		} else if (wbwModel.getTags().contains("dragHost")) { //$NON-NLS-1$
-			wbwShell = new Shell(parentShell, SWT.BORDER | rtlStyle);
-			wbwShell.setAlpha(110);
-		} else {
-			wbwShell = new Shell(parentShell, SWT.TITLE | SWT.RESIZE | SWT.MAX
-					| SWT.CLOSE | rtlStyle);
+		// Top-Level
+		if (parentStage == null) 
+		{
+		wbwStage = new Stage();
+		wbwModel.getTags().add("topLevel");
+		}
+		else if (wbwModel.getTags().contains("dragHost")) 
+		{
+		// TODO: Drag'nDrop ?
+		// wbwShell = new Shell(parentShell, SWT.BORDER | rtlStyle);
+		// wbwShell.setAlpha(110);
+		wbwStage = new Stage();	
+		} 
+		// Window, Wizard, Dialog
+		else 
+		{
+		wbwStage = new Stage();	
+		// wbwShell = new Shell(parentShell, SWT.TITLE | SWT.RESIZE | SWT.MAX	| SWT.CLOSE | rtlStyle);
 
-			// Prevent ESC from closing the DW
-			wbwShell.addTraverseListener(new TraverseListener() {
+			// TODO: Was genau macht der TaverseListener ?
+			/* Prevent ESC from closing the DW
+			wbwShell.addTraverseListener(new TraverseListener() 
+			{
 				public void keyTraversed(TraverseEvent e) {
 					if (e.detail == SWT.TRAVERSE_ESCAPE) {
 						e.doit = false;
 					}
 				}
 			});
+			*/
 		}
 
-		wbwShell.setBackgroundMode(SWT.INHERIT_DEFAULT);
+		// TODO: Hintergrundmodus definieren
+		// wbwShell.setBackgroundMode(SWT.INHERIT_DEFAULT);
 
-		Rectangle modelBounds = wbwShell.getBounds();
-		if (wbwModel instanceof EObject) {
-			EObject wbw = (EObject) wbwModel;
-			EClass wbwclass = wbw.eClass();
-			// use eIsSet rather than embed sentinel values
-			if (wbw.eIsSet(wbwclass.getEStructuralFeature("x"))) { //$NON-NLS-1$
-				modelBounds.x = wbwModel.getX();
+	Rectangle modelBounds = new Rectangle();
+		if (wbwModel instanceof EObject) 
+		{
+		EObject wbw = (EObject) wbwModel;
+		EClass wbwclass = wbw.eClass();
+			
+			// Fensterangaben aus dem Applikationsmodel laden:
+			if (wbw.eIsSet(wbwclass.getEStructuralFeature("x"))) 
+			{
+			modelBounds.x = wbwModel.getX();
 			}
-			if (wbw.eIsSet(wbwclass.getEStructuralFeature("y"))) { //$NON-NLS-1$
-				modelBounds.y = wbwModel.getY();
+			if (wbw.eIsSet(wbwclass.getEStructuralFeature("y"))) 
+			{
+			modelBounds.y = wbwModel.getY();
 			}
-			if (wbw.eIsSet(wbwclass.getEStructuralFeature("height"))) { //$NON-NLS-1$
-				modelBounds.height = wbwModel.getHeight();
+			if (wbw.eIsSet(wbwclass.getEStructuralFeature("height"))) 
+			{
+			modelBounds.height = wbwModel.getHeight();
 			}
-			if (wbw.eIsSet(wbwclass.getEStructuralFeature("width"))) { //$NON-NLS-1$
-				modelBounds.width = wbwModel.getWidth();
+			if (wbw.eIsSet(wbwclass.getEStructuralFeature("width"))) 
+			{
+			modelBounds.width = wbwModel.getWidth();
 			}
 		}
-		// Force the shell onto the display if it would be invisible otherwise
-		Rectangle displayBounds = Display.getCurrent().getBounds();
-		if (!modelBounds.intersects(displayBounds)) {
-			Rectangle clientArea = Display.getCurrent().getClientArea();
-			modelBounds.x = clientArea.x;
-			modelBounds.y = clientArea.y;
+	// Force the shell onto the display if it would be invisible otherwise
+	Rectangle2D displayBounds = Screen.getPrimary().getVisualBounds();
+	Rectangle2D modelBounds2D = new Rectangle2D(modelBounds.x, modelBounds.y, modelBounds.height, modelBounds.width);
+	
+		if (! modelBounds2D.intersects(displayBounds)) 
+		{
+		// Rectangle clientArea = Display.getCurrent().getClientArea();
+		// modelBounds.x = clientArea.x;
+		// modelBounds.y = clientArea.y;
 		}
-		wbwShell.setBounds(modelBounds);
+		wbwStage.setHeight(modelBounds.x);
+		wbwStage.setHeight(modelBounds.y);
+		wbwStage.centerOnScreen();
 
-		setCSSInfo(wbwModel, wbwShell);
+		// TODO: 
+		// setCSSInfo(wbwModel, wbwShell);
 
 		// set up context
 		IEclipseContext localContext = getContext(wbwModel);
+		/*
 
 		// We need to retrieve specific CSS properties for our layout.
 		CSSEngineHelper helper = new CSSEngineHelper(localContext, wbwShell);
@@ -167,6 +200,6 @@ private static String ShellMaximizedTag = "shellMaximized"; //$NON-NLS-1$
 		}
 
 	 */	
-	return newWidget;
+	return wbwStage;
 	}
 }

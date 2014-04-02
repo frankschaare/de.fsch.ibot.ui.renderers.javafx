@@ -8,11 +8,21 @@ import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
 import de.fsch.ibot.ui.internal.workbench.AbstractPartRenderer;
 import de.fsch.ibot.ui.renderers.javafx.WBWRenderer;
 
-
+/**
+ * The custom renderer factory is registered via the org.eclipse.core.runtime.products extension point. 
+ * You use an additional property called rendererFactoryUri to point to the new factory class:
+ * 
+ * <property
+ * 	name="rendererFactoryUri"
+ *  value="bundleclass://de.fsch.ibot.ui.renderers.javafx/de.fsch.ibot.ui.workbench.factories.WorkbenchRendererFactory">
+ * </property>
+ *  
+ * @author fsch
+ * @since 01.04.2014	
+ */
 public class WorkbenchRendererFactory implements IRendererFactory
 {
 private IEclipseContext context;	
-
 private WBWRenderer wbwRenderer;
 
 	public WorkbenchRendererFactory()
