@@ -12,5 +12,7 @@ Require-Bundle: org.eclipse.e4.ui.model.workbench,
  org.eclipse.emf.ecore;bundle-version="2.9.2",
  org.eclipse.e4.core.services,
  org.eclipse.m2e.maven.runtime;bundle-version="1.4.0"
-Export-Package: de.fsch.ibot.ui.workbench.factories
+Export-Package: de.fsch.ibot.ui.internal.workbench,
+ de.fsch.ibot.ui.renderers.javafx,
+ de.fsch.ibot.ui.workbench.factories
 Bundle-ActivationPolicy: lazy
