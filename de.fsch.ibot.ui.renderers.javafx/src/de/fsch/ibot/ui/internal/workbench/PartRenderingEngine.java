@@ -1,21 +1,34 @@
 package de.fsch.ibot.ui.internal.workbench;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import javafx.stage.Screen;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import org.eclipse.core.runtime.ISafeRunnable;
+import org.eclipse.core.runtime.SafeRunner;
 import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.core.di.annotations.Optional;
 import org.eclipse.e4.core.services.contributions.IContributionFactory;
 import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.core.services.log.Logger;
+import org.eclipse.e4.ui.model.application.MApplication;
 import org.eclipse.e4.ui.model.application.MApplicationElement;
+import org.eclipse.e4.ui.model.application.ui.MContext;
+import org.eclipse.e4.ui.model.application.ui.MElementContainer;
 import org.eclipse.e4.ui.model.application.ui.MUIElement;
+import org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder;
+import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
 import org.eclipse.e4.ui.workbench.IPresentationEngine;
 import org.eclipse.e4.ui.workbench.modeling.EModelService;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.equinox.app.IApplication;
 
+import de.fsch.ibot.ui.renderers.javafx.FXApplication;
 import de.fsch.ibot.ui.workbench.factories.IRendererFactory;
 
 public class PartRenderingEngine implements IPresentationEngine
@@ -30,6 +43,8 @@ private Map<String, AbstractPartRenderer> customRendererMap = new HashMap<String
 private static final String DEFAULT_WORRKBENCHRENDERERFACTORY = "bundleclass://de.fsch.ibot.ui.renderers.javafx/de.fsch.ibot.ui.workbench.factories.WorkbenchRendererFactory";
 public static final String PARTRENDERINGENGINE_URI = "bundleclass://de.fsch.ibot.ui.renderers.javafx/de.fsch.ibot.ui.internal.workbench.PartRenderingEngine";
 private String factoryUrl;
+private FXApplication fxApp = null;
+protected MApplication e4App;
 	
 
 	public PartRenderingEngine()
@@ -97,10 +112,188 @@ private String factoryUrl;
 		}
 	}	
 	
+	
+	/*
+	 * Wird aufgerufen von safeCreateGui(MUIElement element)
+	 */
 	public Object safeCreateGui(MUIElement element, Object parentWidget, IEclipseContext parentContext) 
 	{
-	return null;	
+		if (!element.isToBeRendered()) return null;
+
+		//TODO  no creates while processing a remove
+		/*
+		if (removeRoot != null) 
+		{
+			return null;
+		}
+		 */
+
+	Object currentWidget = element.getWidget();
+		if (currentWidget != null) 
+		{
+			// TODO SWT Shit ersetzen
+			/*
+			if (currentWidget instanceof Control) 
+			{
+				Control control = (Control) currentWidget;
+				// make sure the control is visible
+				if (!(element instanceof MPlaceholder))
+					control.setVisible(true);
+
+				if (parentWidget instanceof Composite) {
+					Composite currentParent = control.getParent();
+					if (currentParent != parentWidget) {
+						// check if the original parent was a tab folder
+						if (currentParent instanceof CTabFolder) {
+							CTabFolder folder = (CTabFolder) currentParent;
+							// if we used to be the tab folder's top right
+							// control, unset it
+							if (folder.getTopRight() == control) {
+								folder.setTopRight(null);
+							}
+						}
+
+						// the parents are different so we should reparent it
+						control.setParent((Composite) parentWidget);
+					}
+				}
+			}
+			 */
+
+			// Reparent the context (or the kid's context)
+			if (element instanceof MContext) 
+			{
+			IEclipseContext ctxt = ((MContext) element).getContext();
+				if (ctxt != null) ctxt.setParent(parentContext);
+			} 
+			else 
+			{
+			List<MContext> childContexts = modelService.findElements(element, null, MContext.class, null);
+				for (MContext c : childContexts) 
+				{
+				// Ensure that we only reset the context of our direct children
+				MUIElement kid = (MUIElement) c;
+				MUIElement parent = kid.getParent();
+					if (parent == null && kid.getCurSharedRef() != null)
+						parent = kid.getCurSharedRef().getParent();
+					if (!(element instanceof MPlaceholder) && parent != element)
+						continue;
+					if (c.getContext() != null && c.getContext().getParent() != parentContext) 
+					{
+					c.getContext().setParent(parentContext);
+					}
+				}
+			}
+
+			// Now that we have a widget let the parent (if any) know
+			if (element.getParent() instanceof MUIElement) 
+			{
+			MElementContainer<MUIElement> parentElement = element.getParent();
+			AbstractPartRenderer parentRenderer = getRendererFor(parentElement);
+				if (parentRenderer != null)
+				{
+				parentRenderer.childRendered(parentElement, element);
+				}
+			}
+		return element.getWidget();
+		}
+
+		if (element instanceof MContext) 
+		{
+		MContext ctxt = (MContext) element;
+			// Assert.isTrue(ctxt.getContext() == null,
+			// "Before rendering Context should be null");
+			if (ctxt.getContext() == null) 
+			{
+			IEclipseContext lclContext = parentContext.createChild(getContextName(element));
+			populateModelInterfaces(ctxt, lclContext, element.getClass().getInterfaces());
+			ctxt.setContext(lclContext);
+
+			// System.out.println("New Context: " + lclContext.toString() + " parent: " + parentContext.toString());
+
+			// make sure the context knows about these variables that have been defined in the model
+				for (String variable : ctxt.getVariables()) 
+				{
+				lclContext.declareModifiable(variable);
+				}
+
+			Map<String, String> props = ctxt.getProperties();
+				for (String key : props.keySet()) 
+				{
+				lclContext.set(key, props.get(key));
+				}
+			}
+		}
+
+		// Create a control appropriate to the part
+		Object newWidget = createWidget(element, parentWidget);
+
+		// Remember that we've created the control
+			if (newWidget != null) 
+			{
+			AbstractPartRenderer renderer = getRendererFor(element);
+
+			// Have the renderer hook up any widget specific listeners
+			renderer.hookControllerLogic(element);
+
+				// Process its internal structure through the renderer that created
+				// it
+				if (element instanceof MElementContainer) 
+				{
+				renderer.processContents((MElementContainer<MUIElement>) element);
+				}
+
+			// Allow a final chance to set up
+			renderer.postProcess(element);
+
+			// Now that we have a widget let the parent (if any) know
+				if (element.getParent() instanceof MUIElement) 
+				{
+				MElementContainer<MUIElement> parentElement = element.getParent();
+				AbstractPartRenderer parentRenderer = getRendererFor(parentElement);
+					if (parentRenderer != null) parentRenderer.childRendered(parentElement, element);
+				}
+			} 
+			else 
+			{
+				// failed to create the widget, dispose its context if necessary
+				if (element instanceof MContext) 
+				{
+				MContext ctxt = (MContext) element;
+				IEclipseContext lclContext = ctxt.getContext();
+					if (lclContext != null) 
+					{
+					lclContext.dispose();
+					ctxt.setContext(null);
+					}
+				}
+		}
+	return newWidget;
 	}
+	
+	private static void populateModelInterfaces(MContext contextModel, IEclipseContext context, Class<?>[] interfaces) 
+	{
+		for (Class<?> intf : interfaces) 
+		{
+		// TODO Activator.trace(Policy.DEBUG_CONTEXTS, "Adding " + intf.getName() + " for " + contextModel.getClass().getName(), null);
+		context.set(intf.getName(), contextModel);
+
+		populateModelInterfaces(contextModel, context, intf.getInterfaces());
+		}
+	}	
+	
+	private String getContextName(MUIElement element) 
+	{
+	StringBuilder builder = new StringBuilder(element.getClass().getSimpleName());
+	String elementId = element.getElementId();
+		if (elementId != null && elementId.length() != 0) 
+		{
+		builder.append(" (").append(elementId).append(") ");
+		}
+	builder.append("Context");
+	
+	return builder.toString();
+	}	
 	
 	/*
 	 * Hier wird der Renderer im UI-Objekt gespeichert
@@ -122,7 +315,7 @@ private String factoryUrl;
 			}
 		}
 
-		return null;
+	return null;
 	}
 	
 	/*
@@ -153,7 +346,7 @@ private String factoryUrl;
 			}
 		}
 
-		// If not then use the default renderer
+	// Wichtig: hier wird die WorkbenchRendererFactory aufgerufen und es wird der konkrete Renderer abgefragt
 	return curFactory.getRenderer(uiElement, parent);
 	}
 
@@ -169,12 +362,100 @@ private String factoryUrl;
 	}
 
 	@Override
-	public Object createGui(MUIElement element)
+	public Object createGui(final MUIElement element)
 	{
-		// TODO Auto-generated method stub
-		return null;
+	final Object[] gui = { null };
+	
+	// wrap the handling in a SafeRunner so that exceptions do not prevent
+	// the renderer from processing other elements
+	/*
+	SafeRunner.run(new ISafeRunnable() 
+		{
+		public void handleException(Throwable e) 
+		{
+			if (e instanceof Error) 
+			{
+			// errors are deadly, we shouldn't ignore these
+			throw (Error) e;
+			} 
+			else 
+			{
+				// log exceptions otherwise
+				if (logger != null) 
+				{
+				String message = "Exception occurred while rendering: {0}"; 
+				logger.error(e, message);
+				}
+			}
+		}
+
+		public void run() throws Exception 
+		{
+			System.out.println(element.getElementId());
+		gui[0] = safeCreateGui(element);
+		}
+		});
+		*/
+	gui[0] = safeCreateGui(element);
+	return gui[0];
 	}
 
+	/*
+	 * Wird aufgerufen von createGui(MUIElement element)
+	 */
+	private Object safeCreateGui(MUIElement element) 
+	{
+	// Obtain the necessary parent widget
+	Object parent = null;
+	MUIElement parentME = element.getParent();
+		if (parentME == null)
+		{
+		parentME = (MUIElement) ((EObject) element).eContainer();
+		}
+		if (parentME != null) 
+		{
+		AbstractPartRenderer renderer = getRendererFor(parentME);
+			if (renderer != null) 
+			{
+				if (!element.isVisible()) 
+				{
+				// TODO parent = getLimboShell();
+				} 
+				else 
+				{
+				parent = renderer.getUIContainer(element);
+				}
+			}
+		}
+
+	// Obtain the necessary parent context
+	IEclipseContext parentContext = null;
+		if (element.getCurSharedRef() != null) 
+		{
+		MPlaceholder ph = element.getCurSharedRef();
+		parentContext = getContext(ph.getParent());
+		} 
+		else if (parentContext == null && element.getParent() != null) 
+		{
+		parentContext = getContext(element.getParent());
+		} 
+		else if (parentContext == null && element.getParent() == null) 
+		{
+		parentContext = getContext((MUIElement) ((EObject) element).eContainer());
+		}
+
+	return safeCreateGui(element, parent, parentContext);
+	}	
+	
+	private IEclipseContext getContext(MUIElement parent) 
+	{
+		if (parent instanceof MContext) 
+		{
+		return ((MContext) parent).getContext();
+		}
+	return modelService.getContainingContext(parent);
+	}
+	
 	@Override
 	public void removeGui(MUIElement element)
 	{
@@ -189,11 +470,51 @@ private String factoryUrl;
 
 	}
 
-	@Override
-	public Object run(MApplicationElement uiRoot, IEclipseContext appContext)
+	/*
+	 * Hier wird die GUI gestartet.
+	 * Wird aufgerufen von E4Workbench#createAndRunUI(MApplicationElement uiRoot)
+	 * (non-Javadoc)
+	 * @see org.eclipse.e4.ui.workbench.IPresentationEngine#run(org.eclipse.e4.ui.model.application.MApplicationElement, org.eclipse.e4.core.contexts.IEclipseContext)
+	 */
+	public Object run(final MApplicationElement uiRoot, final IEclipseContext runContext) 
 	{
-		// TODO Auto-generated method stub
-		return null;
+	/*	
+	 * Wichtig: 
+	 * Ich habe im SWT-Renderer nicht gefunden, wo die RenderFactory initialisiert wird,
+	 * daher initialisiere ich erst einmal hier.
+	 * Möglicherweise muss das nochmal geändert werden.
+	 */
+	initialize(runContext);
+	
+	// UI Thread starten
+	fxApp = new FXApplication();
+	e4App = (MApplication) uiRoot;
+	
+	// long startTime = System.currentTimeMillis();
+	MWindow selected = e4App.getSelectedElement();
+	
+		if (selected == null) 
+		{
+			for (MWindow window : e4App.getChildren()) 
+			{
+			createGui(window);
+			}
+		} 
+		else 
+		{
+		// render the selected one first
+		createGui(selected);
+			for (MWindow window : e4App.getChildren()) 
+			{
+				if (selected != window) 
+				{
+				createGui(window);
+				}
+		}
+	}
+	fxApp.launch(fxApp.getClass());
+
+	return IApplication.EXIT_OK;
 	}
 
 	@Override

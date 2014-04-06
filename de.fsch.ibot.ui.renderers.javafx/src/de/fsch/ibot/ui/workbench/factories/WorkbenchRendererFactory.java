@@ -30,6 +30,13 @@ private WBWRenderer wbwRenderer;
 		// TODO Auto-generated constructor stub
 	}
 
+	/*
+	 * Hier wird der konkrete Renderer abgefragt. Wird aufgerufen von:
+	 * - PartRenderingEngine#getRenderer(MUIElement uiElement, Object parent)
+	 * 
+	 * (non-Javadoc)
+	 * @see de.fsch.ibot.ui.workbench.factories.IRendererFactory#getRenderer(org.eclipse.e4.ui.model.application.ui.MUIElement, java.lang.Object)
+	 */
 	@Override
 	public AbstractPartRenderer getRenderer(MUIElement uiElement, Object parent)
 	{
