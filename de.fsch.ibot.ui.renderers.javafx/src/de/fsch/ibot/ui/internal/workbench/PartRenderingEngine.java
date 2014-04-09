@@ -4,13 +4,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javafx.stage.Screen;
-
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-import org.eclipse.core.runtime.ISafeRunnable;
-import org.eclipse.core.runtime.SafeRunner;
 import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.core.di.annotations.Optional;
 import org.eclipse.e4.core.services.contributions.IContributionFactory;
@@ -307,11 +303,11 @@ protected MApplication e4App;
 		{
 		// Remember which renderer is responsible for this widget
 		element.setRenderer(renderer);
-		Object newWidget = renderer.createWidget(element, parent);
-			if (newWidget != null) 
+		Object newControl = renderer.createControl(element, parent);
+			if (newControl != null) 
 			{
-			renderer.bindWidget(element, newWidget);
-			return newWidget;
+			renderer.bindControl(element, newControl);
+			return newControl;
 			}
 		}
 

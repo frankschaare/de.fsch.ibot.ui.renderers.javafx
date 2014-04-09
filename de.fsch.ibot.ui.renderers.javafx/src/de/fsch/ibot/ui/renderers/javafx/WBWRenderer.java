@@ -9,11 +9,12 @@ import org.eclipse.emf.ecore.EObject;
 
 import com.sun.javafx.geom.Rectangle;
 
+import de.fsch.ibot.ui.internal.workbench.JFXPartRenderer;
 import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
 import javafx.stage.Stage; 
 
-public class WBWRenderer extends JavaFXPartRenderer
+public class WBWRenderer extends JFXPartRenderer
 {
 private static String ShellMinimizedTag = "shellMinimized"; //$NON-NLS-1$
 private static String ShellMaximizedTag = "shellMaximized"; //$NON-NLS-1$

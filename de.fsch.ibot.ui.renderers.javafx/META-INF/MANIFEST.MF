@@ -14,8 +14,10 @@ Require-Bundle: org.eclipse.e4.ui.model.workbench,
  org.eclipse.m2e.maven.runtime;bundle-version="1.4.0",
  org.eclipse.equinox.app,
  de.fsch.ibot.javafx;bundle-version="1.8.0",
- org.eclipse.equinox.registry
+ org.eclipse.equinox.registry,
+ org.eclipse.e4.ui.services
 Export-Package: de.fsch.ibot.ui.internal.workbench,
  de.fsch.ibot.ui.renderers.javafx,
  de.fsch.ibot.ui.workbench.factories
 Bundle-ActivationPolicy: lazy
+Import-Package: javax.annotation;version="1.1.0"

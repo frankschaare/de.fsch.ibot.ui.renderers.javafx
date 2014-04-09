@@ -22,17 +22,17 @@ protected EModelService modelService;
 	modelService = context.get(EModelService.class);
 	}
 
-	public abstract Object createWidget(MUIElement element, Object parent);
+	public abstract Object createControl(MUIElement element, Object parent);
 
 	public abstract void processContents(MElementContainer<MUIElement> container);
 
 	public void postProcess(MUIElement childElement) {}
 
-	public abstract void bindWidget(MUIElement me, Object widget);
+	public abstract void bindControl(MUIElement me, Object widget);
 
 	protected abstract Object getParentWidget(MUIElement element);
 
-	public abstract void disposeWidget(MUIElement part);
+	public abstract void disposeControl(MUIElement part);
 
 	public abstract void hookControllerLogic(final MUIElement me);
 
